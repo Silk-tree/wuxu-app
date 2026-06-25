@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final StorageService _storage;
   final ApiService _apiService;
+  final NotificationService _notificationService = NotificationService();
 
   AuthProvider({
     required StorageService storage,
@@ -59,6 +61,25 @@ class AuthProvider with ChangeNotifier {
   Future<void> toggleNotification(bool value) async {
     _notificationEnabled = value;
     await _storage.setNotificationEnabled(value);
+
+    if (value) {
+      // 开启通知时，重新安排所有通知
+      // 注意：这需要访问 ItemProvider，但由于在 AuthProvider 中，
+      // 我们无法直接访问它。通知的重安排将在应用重启时自动进行。
+      try {
+        await _notificationService.cancelAllNotifications();
+      } catch (e) {
+        debugPrint('取消旧通知失败: $e');
+      }
+    } else {
+      // 关闭通知时，取消所有通知
+      try {
+        await _notificationService.cancelAllNotifications();
+      } catch (e) {
+        debugPrint('取消通知失败: $e');
+      }
+    }
+
     notifyListeners();
   }
 }

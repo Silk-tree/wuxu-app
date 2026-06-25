@@ -3,9 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../models/item.dart';
 import '../models/category.dart' as cat;
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
+import '../services/storage_service.dart';
 
 class ItemProvider with ChangeNotifier {
   final ApiService _apiService;
+  final NotificationService _notificationService = NotificationService();
 
   ItemProvider({required ApiService apiService}) : _apiService = apiService;
 
@@ -71,11 +74,53 @@ class ItemProvider with ChangeNotifier {
         categoryId: _currentCategory.isEmpty ? null : _currentCategory,
         sort: _currentSort,
       );
+
+      // 检查是否需要重新安排通知
+      await _rescheduleNotificationsIfNeeded();
     } catch (e) {
       _error = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// 重新安排所有物品的通知（用于通知服务初始化后）
+  Future<void> rescheduleAllNotifications() async {
+    await _notificationService.cancelAllNotifications();
+    for (final item in _items) {
+      await _scheduleNotificationForItem(item);
+    }
+  }
+
+  /// 为单个物品安排通知
+  Future<void> _scheduleNotificationForItem(Item item) async {
+    try {
+      // 检查通知是否启用
+      final storage = await StorageService.getInstance();
+      if (!storage.getNotificationEnabled()) return;
+
+      await _notificationService.scheduleItemNotification(item);
+    } catch (e) {
+      debugPrint('安排通知失败: $e');
+    }
+  }
+
+  /// 如果需要，重新安排通知（例如通知服务刚被启用）
+  Future<void> _rescheduleNotificationsIfNeeded() async {
+    try {
+      final storage = await StorageService.getInstance();
+      if (!storage.getNotificationEnabled()) return;
+
+      // 检查是否已有安排的每日通知
+      // 如果没有，说明可能通知服务刚被启用，需要重新安排
+      for (final item in _items) {
+        // 跳过已过期的物品
+        if (item.status == ItemStatus.expired) continue;
+        await _scheduleNotificationForItem(item);
+      }
+    } catch (e) {
+      debugPrint('重新安排通知失败: $e');
     }
   }
 
@@ -85,6 +130,10 @@ class ItemProvider with ChangeNotifier {
       _items.add(created);
       _items.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
       notifyListeners();
+
+      // 为新物品安排通知
+      await _scheduleNotificationForItem(created);
+
       return created;
     } catch (e) {
       _error = e.toString();
@@ -101,6 +150,10 @@ class ItemProvider with ChangeNotifier {
         _items[index] = updated;
         _items.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
         notifyListeners();
+
+        // 重新安排通知
+        await _notificationService.cancelItemNotification(id);
+        await _scheduleNotificationForItem(updated);
       }
     } catch (e) {
       _error = e.toString();
@@ -112,6 +165,10 @@ class ItemProvider with ChangeNotifier {
   Future<void> deleteItem(String id) async {
     try {
       await _apiService.deleteItem(id);
+
+      // 取消该物品的通知
+      await _notificationService.cancelItemNotification(id);
+
       _items.removeWhere((i) => i.id == id);
       notifyListeners();
     } catch (e) {

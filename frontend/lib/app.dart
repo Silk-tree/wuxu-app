@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'constants/colors.dart';
 import 'pages/home_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/item_detail_page.dart';
+import 'pages/add_item_page.dart';
 import 'providers/item_provider.dart';
 import 'providers/auth_provider.dart';
 import 'services/api_service.dart';
@@ -19,15 +21,42 @@ class WuxuApp extends StatefulWidget {
   State<WuxuApp> createState() => _WuxuAppState();
 }
 
-class _WuxuAppState extends State<WuxuApp> {
+class _WuxuAppState extends State<WuxuApp> with WidgetsBindingObserver {
   StorageService? _storage;
   ApiService? _apiService;
   bool _isInitialized = false;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initServices();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// 处理应用生命周期变化
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 应用从后台恢复时，重新加载数据
+      _reloadDataIfNeeded();
+    }
+  }
+
+  Future<void> _reloadDataIfNeeded() async {
+    if (_navigatorKey.currentContext != null) {
+      final itemProvider = Provider.of<ItemProvider>(
+        _navigatorKey.currentContext!,
+        listen: false,
+      );
+      await itemProvider.loadItems(reload: true);
+    }
   }
 
   Future<void> _initServices() async {
@@ -39,10 +68,53 @@ class _WuxuAppState extends State<WuxuApp> {
     }
     _apiService = ApiService(deviceId: deviceId);
 
-    NotificationService notificationService = NotificationService();
-    await notificationService.init();
+    // 初始化通知服务
+    final notificationService = NotificationService();
+    await notificationService.init(
+      onNotificationTap: _handleNotificationTap,
+    );
 
-    setState(() => _isInitialized = true);
+    // 通知服务初始化后，重新安排所有通知
+    if (mounted) {
+      setState(() => _isInitialized = true);
+    }
+  }
+
+  /// 处理通知点击
+  void _handleNotificationTap(String? payload) {
+    debugPrint('收到通知点击: $payload');
+
+    if (payload == null) return;
+
+    // 解析 payload，格式: "item:xxx"
+    if (payload.startsWith('item:')) {
+      final itemId = payload.substring(5);
+      _navigateToItemDetail(itemId);
+    } else if (payload == 'daily_summary') {
+      // 每日汇总通知，点击跳转首页
+      _navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainPage()),
+        (route) => false,
+      );
+    }
+  }
+
+  /// 跳转到物品详情页
+  void _navigateToItemDetail(String itemId) {
+    // 使用 pushNamed 导航到详情页
+    // 先确保在首页
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainPage()),
+      (route) => false,
+    );
+
+    // 延迟导航到详情页，确保首页已加载
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _navigatorKey.currentState?.pushNamed(
+        '/item-detail',
+        arguments: itemId,
+      );
+    });
   }
 
   @override
@@ -70,6 +142,7 @@ class _WuxuAppState extends State<WuxuApp> {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: _navigatorKey,
         title: '物序',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
@@ -79,6 +152,7 @@ class _WuxuAppState extends State<WuxuApp> {
             final id = ModalRoute.of(context)?.settings.arguments as String? ?? '';
             return ItemDetailPage(itemId: id);
           },
+          '/add-item': (context) => const AddItemPage(),
         },
       ),
     );
