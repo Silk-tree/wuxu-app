@@ -1,0 +1,83 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.a
+*.o
+*.obj
+*.pdb
+*.dSYM
+
+# Test binary
+*.test
+*.out
+
+# Go output
+bin/
+build/
+*.exe
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/App.framework
+ios/Runner/Assets.xcassets/
+android/.gradle/
+android/app/build/
+android/app/*.apk
+android/key.properties
+
+# Android
+*.class
+local.properties
+
+# iOS
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcuserstate
+ios/build/
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+*.orig
+
+# Credentials
+*.pem
+*.key
+credentials.json
+secrets.json
+.env
+.env.local
+.env.*.local
+
+# Release
+release/
+dist/
