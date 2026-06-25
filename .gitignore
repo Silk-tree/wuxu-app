@@ -24,6 +24,9 @@ build/
 dist/
 release/
 
+# Go project binaries
+backend/server
+
 # Dependency directories
 vendor/
 third_party/
