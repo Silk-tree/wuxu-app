@@ -1,15 +1,13 @@
 package repository
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 
 	"github.com/silk-tree/wuxu-app/internal/models"
 )
 
 type ItemListQuery struct {
-	UserID   string
+	DeviceID string
 	Category string
 	Status   string
 	Sort     string
@@ -24,7 +22,7 @@ type ItemRepository interface {
 	Update(item *models.Item) error
 	Delete(id string) error
 	List(query ItemListQuery) ([]models.Item, int64, error)
-	CountByUserID(userID string) (int64, error)
+	CountByDeviceID(deviceID string) (int64, error)
 }
 
 type itemRepository struct {
@@ -60,30 +58,23 @@ func (r *itemRepository) List(query ItemListQuery) ([]models.Item, int64, error)
 	var items []models.Item
 	var total int64
 
-	db := r.db.Model(&models.Item{}).Where("user_id = ?", query.UserID)
+	db := r.db.Model(&models.Item{}).Where("device_id = ?", query.DeviceID)
 
 	if query.Category != "" {
-		db = db.Where("category_id IN (SELECT id FROM categories WHERE value = ?)", query.Category)
+		db = db.Where("category_id IN (SELECT id FROM categories WHERE name = ?)", query.Category)
 	}
 
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
-	switch query.Status {
-	case "expired":
-		db = db.Where("expiry_date < ?", today)
-	case "expiring":
-		db = db.Where("expiry_date >= ? AND expiry_date <= ?", today, today.AddDate(0, 0, 7))
-	case "safe":
-		db = db.Where("expiry_date > ?", today.AddDate(0, 0, 7))
+	if query.Status != "" && query.Status != "all" {
+		db = db.Where("status = ?", query.Status)
 	}
 
 	db.Count(&total)
 
 	sortField := "expiry_date"
-	if query.Sort == "created_at" {
+	switch query.Sort {
+	case "created_at":
 		sortField = "created_at"
-	} else if query.Sort == "name" {
+	case "name":
 		sortField = "name"
 	}
 
@@ -109,8 +100,8 @@ func (r *itemRepository) List(query ItemListQuery) ([]models.Item, int64, error)
 	return items, total, err
 }
 
-func (r *itemRepository) CountByUserID(userID string) (int64, error) {
+func (r *itemRepository) CountByDeviceID(deviceID string) (int64, error) {
 	var count int64
-	err := r.db.Model(&models.Item{}).Where("user_id = ?", userID).Count(&count).Error
+	err := r.db.Model(&models.Item{}).Where("device_id = ?", deviceID).Count(&count).Error
 	return count, err
 }

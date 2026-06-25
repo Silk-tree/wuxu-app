@@ -2,6 +2,7 @@
 
 APP_NAME := wuxu-server
 CMD_PATH := ./cmd/server
+MIGRATE_CMD := ./cmd/migrate
 CONFIG_PATH := configs/config.yaml
 
 run:
@@ -15,7 +16,8 @@ test:
 	@go test -v ./...
 
 migrate:
-	@CONFIG_PATH=$(CONFIG_PATH) go run $(CMD_PATH) migrate
+	@CONFIG_PATH=$(CONFIG_PATH) go run $(MIGRATE_CMD)
+	@echo "Migration complete"
 
 tidy:
 	@go mod tidy

@@ -20,23 +20,16 @@ func (m *BaseModel) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-type User struct {
-	BaseModel
-	DeviceID           string    `gorm:"type:varchar(255);uniqueIndex;not null" json:"device_id"`
-	HasUnlocked        bool      `gorm:"default:false;not null" json:"has_unlocked"`
-	NotificationEnabled bool     `gorm:"default:true;not null" json:"notification_enabled"`
-	ItemCount          int       `gorm:"default:0;not null" json:"item_count"`
-}
-
-func (User) TableName() string {
-	return "users"
-}
+const (
+	StatusSafe    = "safe"
+	StatusWarning = "warning"
+	StatusExpired = "expired"
+)
 
 type Category struct {
 	BaseModel
-	Value     string `gorm:"type:varchar(50);uniqueIndex;not null" json:"value"`
-	Label     string `gorm:"type:varchar(50);not null" json:"label"`
-	Icon      string `gorm:"type:varchar(10);not null" json:"icon"`
+	Name      string `gorm:"type:varchar(50);uniqueIndex;not null" json:"name"`
+	Icon      string `gorm:"type:varchar(20);not null" json:"icon"`
 	SortOrder int    `gorm:"default:0;not null" json:"sort_order"`
 }
 
@@ -46,12 +39,15 @@ func (Category) TableName() string {
 
 type Item struct {
 	BaseModel
-	UserID     uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"`
-	CategoryID uuid.UUID `gorm:"type:uuid;index;not null" json:"category_id"`
-	Name       string    `gorm:"type:varchar(50);not null" json:"name"`
-	ExpiryDate time.Time `gorm:"type:date;index;not null" json:"expiry_date"`
-	Quantity   int       `gorm:"default:1;not null;check:quantity >= 1 AND quantity <= 999" json:"quantity"`
-	Location   string    `gorm:"type:varchar(100)" json:"location"`
+	Name            string    `gorm:"type:varchar(100);not null" json:"name"`
+	CategoryID      uuid.UUID `gorm:"type:uuid;index;not null" json:"category_id"`
+	Quantity        int       `gorm:"default:1;not null" json:"quantity"`
+	Unit            string    `gorm:"type:varchar(20)" json:"unit"`
+	ExpiryDate      time.Time `gorm:"type:date;index;not null" json:"expiry_date"`
+	StorageLocation string    `gorm:"type:varchar(100)" json:"storage_location"`
+	Status          string    `gorm:"type:varchar(20);index;not null" json:"status"`
+	Notes           string    `gorm:"type:text" json:"notes"`
+	DeviceID        string    `gorm:"type:varchar(255);index;not null" json:"device_id"`
 
 	Category *Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 }
@@ -60,15 +56,32 @@ func (Item) TableName() string {
 	return "items"
 }
 
+func (item *Item) BeforeSave(tx *gorm.DB) error {
+	item.Status = CalculateStatus(item.ExpiryDate)
+	return nil
+}
+
+func CalculateStatus(expiryDate time.Time) string {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	expiry := time.Date(expiryDate.Year(), expiryDate.Month(), expiryDate.Day(), 0, 0, 0, 0, expiryDate.Location())
+
+	days := int(expiry.Sub(today).Hours() / 24)
+
+	if days < 0 {
+		return StatusExpired
+	}
+	if days <= 7 {
+		return StatusWarning
+	}
+	return StatusSafe
+}
+
 type Purchase struct {
 	BaseModel
-	UserID        uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"`
-	ProductID     string    `gorm:"type:varchar(50);not null" json:"product_id"`
-	Amount        float64   `gorm:"type:decimal(10,2);not null" json:"amount"`
-	Currency      string    `gorm:"type:varchar(3);default:CNY;not null" json:"currency"`
-	TransactionID string    `gorm:"type:varchar(255);uniqueIndex;not null" json:"transaction_id"`
-	PaymentMethod string    `gorm:"type:varchar(20);not null" json:"payment_method"`
-	PaidAt        time.Time `gorm:"not null" json:"paid_at"`
+	DeviceID    string    `gorm:"type:varchar(255);index;not null" json:"device_id"`
+	PurchasedAt time.Time `gorm:"not null" json:"purchased_at"`
+	Amount      int       `gorm:"not null" json:"amount"`
 }
 
 func (Purchase) TableName() string {

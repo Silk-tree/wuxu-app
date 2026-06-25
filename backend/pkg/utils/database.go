@@ -56,7 +56,6 @@ func AutoMigrate() error {
 		return fmt.Errorf("database not initialized")
 	}
 	return DB.AutoMigrate(
-		&models.User{},
 		&models.Category{},
 		&models.Item{},
 		&models.Purchase{},
@@ -69,15 +68,15 @@ func SeedCategories() error {
 	}
 
 	categories := []models.Category{
-		{Value: "food", Label: "食品", Icon: "🍎", SortOrder: 1},
-		{Value: "daily", Label: "日用品", Icon: "🧴", SortOrder: 2},
-		{Value: "medicine", Label: "药品", Icon: "💊", SortOrder: 3},
-		{Value: "other", Label: "其他", Icon: "📦", SortOrder: 4},
+		{Name: "食品", Icon: "🍎", SortOrder: 1},
+		{Name: "日用品", Icon: "🧴", SortOrder: 2},
+		{Name: "药品", Icon: "💊", SortOrder: 3},
+		{Name: "其他", Icon: "📦", SortOrder: 4},
 	}
 
 	for _, cat := range categories {
 		var count int64
-		DB.Model(&models.Category{}).Where("value = ?", cat.Value).Count(&count)
+		DB.Model(&models.Category{}).Where("name = ?", cat.Name).Count(&count)
 		if count == 0 {
 			if err := DB.Create(&cat).Error; err != nil {
 				return err
