@@ -1,8 +1,6 @@
 package router
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -23,8 +21,18 @@ func SetupRouter(db *gorm.DB, mode string) *gin.Engine {
 	r.Use(middleware.Logger())
 
 	categoryRepo := repository.NewCategoryRepository(db)
+	itemRepo := repository.NewItemRepository(db)
+	purchaseRepo := repository.NewPurchaseRepository(db)
+
 	categoryService := services.NewCategoryService(categoryRepo)
+	itemService := services.NewItemService(itemRepo, purchaseRepo)
+	purchaseService := services.NewPurchaseService(purchaseRepo)
+	statsService := services.NewStatsService(itemRepo, purchaseRepo)
+
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	itemHandler := handlers.NewItemHandler(itemService)
+	purchaseHandler := handlers.NewPurchaseHandler(purchaseService)
+	statsHandler := handlers.NewStatsHandler(statsService)
 	healthHandler := handlers.NewHealthHandler()
 
 	r.GET("/", healthHandler.Health)
@@ -35,13 +43,15 @@ func SetupRouter(db *gorm.DB, mode string) *gin.Engine {
 	{
 		apiV1.GET("/categories", categoryHandler.List)
 
-		auth := apiV1.Group("")
-		auth.Use(middleware.JWTAuth())
-		{
-			auth.GET("/ping", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "pong"})
-			})
-		}
+		apiV1.POST("/purchase", purchaseHandler.Purchase)
+
+		apiV1.GET("/items", itemHandler.List)
+		apiV1.GET("/items/:id", itemHandler.Get)
+		apiV1.POST("/items", itemHandler.Create)
+		apiV1.PUT("/items/:id", itemHandler.Update)
+		apiV1.DELETE("/items/:id", itemHandler.Delete)
+
+		apiV1.GET("/stats", statsHandler.GetStats)
 	}
 
 	return r

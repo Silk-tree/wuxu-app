@@ -7,13 +7,23 @@ type Response struct {
 }
 
 const (
-	CodeSuccess        = 0
-	CodeParamError     = 1001
-	CodeNotFound       = 1002
-	CodeServerError = 5001
-	CodeAuthError   = 4001
-	CodePayError    = 3001
+	CodeSuccess      = 0
+	CodeParamError   = 1001
+	CodeNotFound     = 1002
+	CodeForbidden    = 1003
+	CodeServerError  = 5001
+	CodeAuthError    = 4001
+	CodePayError     = 3001
+	CodeLimitExceeded = 2001
 )
+
+func Forbidden(message string) Response {
+	return Error(CodeForbidden, message)
+}
+
+func LimitExceeded(message string) Response {
+	return Error(CodeLimitExceeded, message)
+}
 
 func Success(data interface{}) Response {
 	return Response{
