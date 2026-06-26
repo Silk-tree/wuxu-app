@@ -22,6 +22,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -39,7 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
       body: Consumer<AuthProvider>(
         builder: (context, auth, child) {
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding + 70),
             children: [
               _buildPremiumCard(context, auth),
               const SizedBox(height: 20),
@@ -171,74 +172,80 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildNotificationTile(BuildContext context, AuthProvider auth) {
-    return ListTile(
-      leading: Icon(
-        auth.notificationEnabled
-            ? Icons.notifications_active
-            : Icons.notifications_off_outlined,
-        color: auth.notificationEnabled ? AppColors.primary : AppColors.textMuted,
-      ),
-      title: const Text(
-        '过期提醒',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Icon(
+          auth.notificationEnabled
+              ? Icons.notifications_active
+              : Icons.notifications_off_outlined,
+          color: auth.notificationEnabled ? AppColors.primary : AppColors.textMuted,
         ),
-      ),
-      subtitle: Text(
-        auth.notificationEnabled ? '已开启' : '点击开启通知',
-        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isRequestingPermission)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            Switch(
-              value: auth.notificationEnabled,
-              onChanged: (value) => _handleNotificationToggle(context, auth, value),
-              activeColor: AppColors.primary,
-            ),
-        ],
+        title: const Text(
+          '过期提醒',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          auth.notificationEnabled ? '已开启' : '点击开启通知',
+          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isRequestingPermission)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Switch(
+                value: auth.notificationEnabled,
+                onChanged: (value) => _handleNotificationToggle(context, auth, value),
+                activeColor: AppColors.primary,
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildClearCacheTile() {
-    return ListTile(
-      leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.textSecondary),
-      title: const Text(
-        '清理缓存',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.textSecondary),
+        title: const Text(
+          '清理缓存',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
         ),
+        subtitle: const Text(
+          '清除历史记录等临时数据',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isClearingCache)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+          ],
+        ),
+        onTap: _isClearingCache ? null : () => _showClearCacheDialog(context),
       ),
-      subtitle: const Text(
-        '清除历史记录等临时数据',
-        style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isClearingCache)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
-        ],
-      ),
-      onTap: _isClearingCache ? null : () => _showClearCacheDialog(context),
     );
   }
 
@@ -269,6 +276,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(children: children),
     );
   }
@@ -279,30 +287,33 @@ class _SettingsPageState extends State<SettingsPage> {
     required String trailing,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: AppColors.textSecondary),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 15,
-          color: AppColors.textPrimary,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: AppColors.textSecondary),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            color: AppColors.textPrimary,
+          ),
         ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailing.isNotEmpty)
-            Text(
-              trailing,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textMuted,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (trailing.isNotEmpty)
+              Text(
+                trailing,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textMuted,
+                ),
               ),
-            ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
-        ],
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }

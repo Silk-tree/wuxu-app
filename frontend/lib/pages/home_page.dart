@@ -21,7 +21,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final List<String> _statusTabs = const ['全部', '即将过期', '已过期', '正常'];
   int _selectedTab = 0;
-  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -30,25 +29,6 @@ class _HomePageState extends State<HomePage> {
       Provider.of<ItemProvider>(context, listen: false).loadCategories();
       Provider.of<ItemProvider>(context, listen: false).loadItems();
     });
-
-    // 上拉加载更多
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      final provider = Provider.of<ItemProvider>(context, listen: false);
-      if (!provider.isLoading) {
-        provider.loadItems(reload: false);
-      }
-    }
   }
 
   String _getStatusValue(int index) {
@@ -82,7 +62,6 @@ class _HomePageState extends State<HomePage> {
         },
         color: AppColors.primary,
         child: CustomScrollView(
-          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             _buildSliverAppBar(),
@@ -166,29 +145,43 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildStatCard(String label, String value, IconData icon, Color iconColor) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(icon, color: iconColor, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.8),
+          Icon(icon, color: iconColor, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.1,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
