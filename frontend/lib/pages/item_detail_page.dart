@@ -267,9 +267,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   }
 
   Widget _buildInfoCard(Item item) {
-    final categories = ['食品', '日用品', '药品', '其他'];
-    final categoryIndex = int.tryParse(item.categoryId) ?? 0;
-    final categoryName = categoryIndex < categories.length ? categories[categoryIndex] : '其他';
+    final categoryName = item.category?.name ?? '其他';
 
     return Container(
       decoration: BoxDecoration(

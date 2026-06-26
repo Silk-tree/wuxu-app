@@ -18,6 +18,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _isRequestingPermission = false;
   bool _isClearingCache = false;
+  bool _isPurchasing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -138,21 +139,30 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           if (!auth.isPremium)
             GestureDetector(
-              onTap: () => _showPurchaseDialog(context, auth),
+              onTap: _isPurchasing ? null : () => _showPurchaseDialog(context, auth),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  '¥1.00',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.secondary,
-                  ),
-                ),
+                child: _isPurchasing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                        ),
+                      )
+                    : const Text(
+                        '¥1.00',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                        ),
+                      ),
               ),
             ),
         ],
@@ -476,21 +486,33 @@ class _SettingsPageState extends State<SettingsPage> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _processPurchase(context, auth);
-                },
+                onPressed: _isPurchasing
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _processPurchase(context, auth);
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.secondary.withOpacity(0.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  '确认支付 ¥1.00',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                child: _isPurchasing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        '确认支付 ¥1.00',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
             SizedBox(height: MediaQuery.of(context).padding.bottom),
@@ -520,6 +542,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _processPurchase(BuildContext context, AuthProvider auth) async {
+    setState(() => _isPurchasing = true);
     try {
       // 模拟支付
       await Future.delayed(const Duration(seconds: 1));
@@ -536,7 +559,11 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        CustomToast.show(context, message: '支付失败', isError: true);
+        CustomToast.show(context, message: e.toString().replaceAll('Exception: ', ''), isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPurchasing = false);
       }
     }
   }

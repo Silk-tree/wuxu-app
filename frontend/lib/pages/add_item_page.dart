@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../constants/colors.dart';
 import '../models/item.dart';
+import '../models/category.dart';
 import '../providers/item_provider.dart';
 import '../services/storage_service.dart';
 import '../widgets/custom_toast.dart';
@@ -25,7 +26,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
   int _quantity = 1;
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
-  String _selectedCategory = '食品';
+  String _selectedCategoryId = '';
   String _selectedUnit = '个';
   bool _isLoading = false;
 
@@ -53,6 +54,21 @@ class _AddItemPageState extends State<AddItemPage> {
     if (_isEditing) {
       _initWithItem(widget.item!);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureCategoriesLoaded();
+    });
+  }
+
+  Future<void> _ensureCategoriesLoaded() async {
+    final provider = Provider.of<ItemProvider>(context, listen: false);
+    if (provider.categories.isEmpty) {
+      await provider.loadCategories();
+    }
+    if (mounted && _selectedCategoryId.isEmpty && provider.categories.isNotEmpty) {
+      setState(() {
+        _selectedCategoryId = provider.categories.first.id;
+      });
+    }
   }
 
   void _initWithItem(Item item) {
@@ -60,18 +76,18 @@ class _AddItemPageState extends State<AddItemPage> {
     _quantity = item.quantity;
     _selectedUnit = item.unit.isNotEmpty ? item.unit : '个';
     _selectedDate = item.expiryDate;
-    _selectedCategory = _getCategoryFromId(item.categoryId);
+    _selectedCategoryId = item.categoryId;
     _locationController.text = item.storageLocation;
     _notesController.text = item.notes;
   }
 
-  String _getCategoryFromId(String categoryId) {
-    final categories = ['食品', '日用品', '药品', '其他'];
-    final index = int.tryParse(categoryId);
-    if (index != null && index >= 0 && index < categories.length) {
-      return categories[index];
+  Category? _findCategoryById(String id) {
+    final provider = Provider.of<ItemProvider>(context, listen: false);
+    try {
+      return provider.categories.firstWhere((c) => c.id == id);
+    } catch (_) {
+      return null;
     }
-    return '食品';
   }
 
   Future<void> _loadHistory() async {
@@ -265,59 +281,79 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
   Widget _buildCategoryPicker() {
-    final categories = ['食品', '日用品', '药品', '其他'];
-    final icons = ['🍎', '🧴', '💊', '📦'];
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: List.generate(categories.length, (index) {
-          final isSelected = _selectedCategory == categories[index];
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _selectedCategory = categories[index]);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.transparent,
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(icons[index], style: const TextStyle(fontSize: 24)),
-                    const SizedBox(height: 4),
-                    Text(
-                      categories[index],
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+    return Consumer<ItemProvider>(
+      builder: (context, provider, child) {
+        final categories = provider.categories;
+        if (categories.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
           );
-        }),
-      ),
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: List.generate(categories.length, (index) {
+              final category = categories[index];
+              final isSelected = _selectedCategoryId == category.id;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedCategoryId = category.id);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withOpacity(0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(category.icon, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(height: 4),
+                        Text(
+                          category.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 
@@ -583,10 +619,12 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Future<void> _selectDate() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialDate = _selectedDate.isBefore(today) ? today : _selectedDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: now.subtract(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: today,
       lastDate: now.add(const Duration(days: 365 * 10)),
       builder: (context, child) {
         return Theme(
@@ -618,7 +656,7 @@ class _AddItemPageState extends State<AddItemPage> {
       if (_isEditing) {
         await provider.updateItem(widget.item!.id, {
           'name': name,
-          'category_id': _getCategoryId(_selectedCategory),
+          'category_id': _selectedCategoryId,
           'quantity': _quantity,
           'unit': _selectedUnit,
           'expiry_date': _formatDate(_selectedDate),
@@ -631,7 +669,7 @@ class _AddItemPageState extends State<AddItemPage> {
         await provider.createItem(Item(
           id: '',
           name: name,
-          categoryId: _getCategoryId(_selectedCategory),
+          categoryId: _selectedCategoryId,
           quantity: _quantity,
           unit: _selectedUnit,
           expiryDate: _selectedDate,
@@ -659,12 +697,6 @@ class _AddItemPageState extends State<AddItemPage> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  String _getCategoryId(String category) {
-    final categories = ['食品', '日用品', '药品', '其他'];
-    final index = categories.indexOf(category);
-    return index >= 0 ? index.toString() : '0';
   }
 
   String _formatDate(DateTime date) {
