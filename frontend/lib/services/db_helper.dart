@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import 'database_factory_initializer.dart';
+
 class DbHelper {
   static const String _databaseName = 'wuxu.db';
   static const int _databaseVersion = 1;
@@ -14,8 +16,10 @@ class DbHelper {
   }
 
   static Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, _databaseName);
+    initializeDatabaseFactory();
+    final path = usesWebDatabaseFactory
+        ? _databaseName
+        : join(await getDatabasesPath(), _databaseName);
 
     return await openDatabase(
       path,
