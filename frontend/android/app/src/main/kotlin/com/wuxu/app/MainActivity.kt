@@ -1,4 +1,4 @@
-package com.wuxu.wuxu_app
+package com.wuxu.app
 
 import io.flutter.embedding.android.FlutterActivity
 
